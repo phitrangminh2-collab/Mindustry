@@ -55,6 +55,14 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
             -s -k "$KEYCHAIN_PASSWORD" build.keychain
 
+          # A self-signed cert has no chain to a real CA, so even with the correct
+          # EKU it's filtered out of `find-identity -p codesigning` (shows as
+          # "0 valid identities" even though it "matches" on paper). Explicitly
+          # tell macOS to trust this specific cert as a root, for code-signing
+          # purposes only. Needs sudo: this writes to the system-wide admin
+          # trust store, which GitHub's macOS runners allow passwordlessly.
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign signing.crt
+
           echo "=== Codesigning identities visible to RoboVM ==="
           security find-identity -v -p codesigning build.keychain
 
