@@ -25,9 +25,15 @@ jobs:
         env:
           KEYCHAIN_PASSWORD: ${{ github.run_id }}-tempkeychain
         run: |
-          # Create a private key + self-signed cert good for code signing
+          # Create a private key + self-signed cert good for code signing.
+          # -addext extendedKeyUsage=codeSigning is required: without it, the cert
+          # imports into the keychain fine but `security find-identity -p codesigning`
+          # (which RoboVM uses to resolve -PsignIdentity) filters it out entirely,
+          # since Apple's tooling only lists identities explicitly marked for code signing.
           openssl req -x509 -newkey rsa:2048 -keyout signing.key -out signing.crt \
-            -days 365 -nodes -subj "/CN=iOS Development: Self Signer"
+            -days 365 -nodes -subj "/CN=iOS Development: Self Signer" \
+            -addext "keyUsage=digitalSignature" \
+            -addext "extendedKeyUsage=codeSigning"
 
           # Bundle into a .p12 so `security import` can load both key + cert together.
           # -legacy + explicit PBE-SHA1-3DES: OpenSSL 3.x defaults to AES-256 for .p12,
@@ -48,6 +54,9 @@ jobs:
             -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: \
             -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          echo "=== Codesigning identities visible to RoboVM ==="
+          security find-identity -v -p codesigning build.keychain
 
       - name: Generate matching homemade provisioning profile
         run: |
