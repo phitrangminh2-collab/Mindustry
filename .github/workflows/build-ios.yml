@@ -29,9 +29,14 @@ jobs:
           openssl req -x509 -newkey rsa:2048 -keyout signing.key -out signing.crt \
             -days 365 -nodes -subj "/CN=iOS Development: Self Signer"
 
-          # Bundle into a .p12 so `security import` can load both key + cert together
+          # Bundle into a .p12 so `security import` can load both key + cert together.
+          # -legacy + explicit PBE-SHA1-3DES: OpenSSL 3.x defaults to AES-256 for .p12,
+          # which macOS's `security` tool can't parse (fails with a misleading
+          # "wrong password?" MAC-verification error). Force the old encryption
+          # scheme Apple's Security framework actually understands.
           openssl pkcs12 -export -out signing.p12 \
-            -inkey signing.key -in signing.crt -passout pass:tempp12pass
+            -inkey signing.key -in signing.crt -passout pass:tempp12pass \
+            -legacy -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg SHA1
 
           # Fresh keychain so this doesn't touch the runner's default keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
