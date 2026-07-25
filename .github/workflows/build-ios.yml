@@ -94,11 +94,18 @@ jobs:
             -k build.keychain \
             -i profile.plist -o mindustry.mobileprovision
 
+          # RoboVM/Xcode-adjacent tooling doesn't search by filename — it scans
+          # ~/Library/MobileDevice/Provisioning Profiles/ and matches on the
+          # embedded "Name" field. Just having the file sit in the working
+          # directory (what we did before) is invisible to that lookup.
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp mindustry.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/${UUID}.mobileprovision
+
       - name: Build & sign IPA
         run: |
           ./gradlew ios:createIPA \
             -PsignIdentity="iOS Development: Self Signer" \
-            -PprovisioningProfile="mindustry.mobileprovision"
+            -PprovisioningProfile="Mindustry Self-Signed Profile"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
